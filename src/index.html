@@ -12,9 +12,9 @@
 <body>
   <header class="top">
     <div class="brand">刃のまにまに <small>— 本丸歳時記 —</small></div>
-    <button id="fold" aria-label="ステータス折りたたみ">状況 ▾</button>
+    <button id="fold" aria-label="ステータス折りたたみ" aria-expanded="true">状況 ▾</button>
+    <div id="status" class="status"></div>
   </header>
-  <div id="status" class="status"></div>
   <main id="app" class="app"></main>
   <nav id="nav" class="bottom-nav" hidden>
     <button data-view="home">本丸</button>
@@ -24,9 +24,7 @@
   </nav>
   <div id="modal" class="modal" hidden>
     <div class="modal-backdrop"></div>
-    <section class="modal-card" role="dialog" aria-modal="true">
-      <div id="modal-content"></div>
-    </section>
+    <section class="modal-card" role="dialog" aria-modal="true"><div id="modal-content"></div></section>
   </div>
   <script src="game.js"></script>
   <script src="game-features.js"></script>
