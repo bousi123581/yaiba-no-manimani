@@ -1,0 +1,6 @@
+/* Shorter season transition and follow-up event effects. */
+.short-season-transition .season-overlay { animation-duration: .85s; }
+.short-season-transition .season-overlay { transition-duration: .85s; }
+.forge-failed { border-color: #b64a4a; background: #fff0ef; }
+.forge-failed h2 { color: #983d3d; }
+.event-gift { border-left-color: #b58b43; background: #fff8df; }
