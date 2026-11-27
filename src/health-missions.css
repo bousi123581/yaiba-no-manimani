@@ -1,0 +1,26 @@
+/* UI for yearly goals, health status, and a persistent latest expedition entry. */
+.annual-missions { border-left: 4px solid var(--indigo); padding: 12px 14px; }
+.annual-missions h3 { margin: 0 0 4px; color: var(--indigo-dark); }
+.annual-missions .mission-limit { margin: 3px 0; color: var(--danger); font-weight: 700; }
+.annual-missions ul { list-style: none; margin: 8px 0; padding: 0; }
+.annual-missions li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 2px; border-bottom: 1px solid var(--line); }
+.annual-missions li.is-complete { color: #42633e; }
+.annual-missions .mission-total { margin: 5px 0 0; text-align: right; font-weight: 700; }
+.hp-card { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #f0f3eb; }
+.hp-label { display: flex; justify-content: space-between; gap: 8px; font-size: .82rem; }
+.hp-track { height: 10px; overflow: hidden; margin-top: 5px; border-radius: 99px; background: #e4ded0; }
+.hp-track span { display: block; height: 100%; border-radius: inherit; background: #62865b; transition: width 180ms ease; }
+.hp-light { background: #fff8d8; border-color: #dfc65a; }
+.hp-light .hp-track span { background: #d3b52d; }
+.hp-moderate { background: #fff0df; border-color: #e7a05b; }
+.hp-moderate .hp-track span { background: #e88932; }
+.hp-critical { background: #fde7e6; border-color: #d78a8c; }
+.hp-critical .hp-track span { background: #b83f43; }
+.expedition-title { margin: 2px 4px 4px !important; font-size: 1.05rem !important; line-height: 1.3; }
+.expedition-latest { margin: 4px 0 10px; padding: 10px 12px; border-left: 4px solid var(--indigo); background: #edf1f5; }
+.expedition-latest > span { display: block; color: var(--muted); font-size: .75rem; font-weight: 700; }
+.expedition-latest p { margin: 3px 0 0; font-size: .96rem; font-weight: 700; line-height: 1.55; }
+.battle-history[hidden] { display: none !important; }
+.expedition-lower-details { margin: 14px 0 18px; }
+.expedition-lower-details .listitem { padding: 8px 2px; }
+#modal-content .choice .hp-card { width: 100%; text-align: left; }
