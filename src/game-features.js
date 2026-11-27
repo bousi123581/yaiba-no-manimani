@@ -1,6 +1,7 @@
 /* Annual objectives and UI/gameplay extensions layered over the base game. */
 (() => {
-  const RESOURCE_KEYS = ["wood", "stone", "coal", "iron", "coins"];
+  const MATERIALS = ["wood", "stone", "coal", "iron"];
+  const RESOURCE_KEYS = [...MATERIALS, "coins"];
   const RESOURCE_LABELS = { wood: "木", stone: "石", coal: "炭", iron: "鉄", coins: "小判" };
   const MISSION_TEMPLATES = [
     { id: "sortie", label: "出陣を2回行う", target: 2 },
@@ -8,13 +9,14 @@
     { id: "forge", label: "鍛刀を1回行う", target: 1 },
     { id: "duty", label: "内番を1回行う", target: 1 },
   ];
-  // Capture originals before replacing globals; capturing after assignment caused openTalk recursion.
+  // Capture originals before replacing globals; the previous wrapper accidentally recursed into itself.
   const base = {
-    fresh, load, save, render, renderHome, renderActions, renderBook, renderJournal,
-    renderBattleView, renderStatus, action, advanceSeason, talkChoice, doDuty,
-    battleStep, advanceBattle, returnBattle, consume, forge, entry, resetGame,
+    fresh, load, save, render, renderTitle, renderHome, renderActions, renderBook,
+    renderJournal, renderBattleView, renderStatus, action, advanceSeason,
+    talkChoice, doDuty, battleStep, advanceBattle, returnBattle, consume,
+    entry, resetGame,
   };
-  let freeLog = false;
+  let forgeSession = null;
 
   function conditionFor(hp) {
     if (hp <= 20) return "重症";
@@ -37,12 +39,14 @@
     state.penaltyActive = state.penaltySeasonsRemaining > 0;
     state.spontaneousEventTurns = Number.isFinite(state.spontaneousEventTurns) ? state.spontaneousEventTurns : -1;
     (state.owned || []).forEach((member) => {
-      if (!Number.isFinite(member.hp)) {
-        member.hp = ({ 健康: 100, 軽傷: 70, 中傷: 45, 重傷: 20, 重症: 20 })[member.condition] ?? 100;
-      }
+      if (!Number.isFinite(member.hp)) member.hp = ({ 健康: 100, 軽傷: 70, 中傷: 45, 重傷: 20, 重症: 20 })[member.condition] ?? 100;
       member.hp = clamp(member.hp, 0, 100);
       member.condition = conditionFor(member.hp);
       member.trainingExp = Number.isFinite(member.trainingExp) ? member.trainingExp : 0;
+      member.fatigue = Number.isFinite(member.fatigue) ? clamp(member.fatigue) : 0;
+    });
+    if (Array.isArray(state.logs)) state.logs.forEach((log) => {
+      if (log.n === null || log.n === undefined) log.n = null;
     });
     return state;
   }
@@ -84,9 +88,8 @@
     if (!G) return;
     const r = G.resources || {};
     const calm = 100 - clamp(Number(G.black) || 0);
-    const seasonMark = seasonEmoji[G.season] || "";
     $("status").className = "status" + (folded ? " folded" : "");
-    $("status").innerHTML = `<div class="statgrid"><div class="stat">就任 ${G.year}年目 / ${G.age}歳</div><div class="stat">${seasonMark} ${G.season}</div><div class="stat">審神者Lv.${G.level} / 行動 ${G.actions}/${G.maxActions}</div><div class="stat">近侍：${sword(G.adjutant)?.name || "未設定"}</div><div class="stat resource-stat">資源　木 ${r.wood ?? 0} / 石 ${r.stone ?? 0} / 炭 ${r.coal ?? 0} / 鉄 ${r.iron ?? 0} / 小判 ${r.coins ?? 0}</div><div class="stat calm-stat"><div class="calm-caption"><span>本丸の穏やかさ</span><b>${calm}%</b></div><div class="calm-track"><span style="width:${calm}%"></span></div><small>ブラック本丸 ${100 - calm}%</small></div></div>`;
+    $("status").innerHTML = `<div class="statgrid"><div class="stat">就任 ${G.year}年目 / ${G.age}歳</div><div class="stat">${seasonEmoji[G.season] || ""} ${G.season}</div><div class="stat">審神者Lv.${G.level} / 行動 ${G.actions}/${G.maxActions}</div><div class="stat">近侍：${sword(G.adjutant)?.name || "未設定"}</div><div class="stat resource-stat">資源　木 ${r.wood ?? 0} / 石 ${r.stone ?? 0} / 炭 ${r.coal ?? 0} / 鉄 ${r.iron ?? 0} / 小判 ${r.coins ?? 0}</div><div class="stat calm-stat"><div class="calm-caption"><span>本丸の穏やかさ</span><b>${calm}%</b></div><div class="calm-track"><span style="width:${calm}%"></span></div><small>ブラック本丸 ${100 - calm}%</small></div></div>`;
   }
   function appendLatestBattleLog() {
     if (!BATTLE) return;
@@ -99,8 +102,8 @@
       latest = document.createElement("section");
       latest.className = "paper expedition-latest";
       latest.setAttribute("aria-live", "polite");
-      (title || app.firstElementChild)?.insertAdjacentElement(title ? "afterend" : "beforebegin", latest);
-      if (!latest.isConnected) app.prepend(latest);
+      if (title) title.insertAdjacentElement("afterend", latest);
+      else app.prepend(latest);
     }
     latest.innerHTML = `<span>最新の進軍記録</span><p>${(BATTLE.logs || []).at(-1) || "進軍中"}</p>`;
     const history = app.querySelector(".battle-history");
@@ -110,8 +113,8 @@
       details.open = true;
       details.classList.add("expedition-lower-details");
       details.querySelectorAll(".listitem").forEach((item) => {
-        const n = item.querySelector("b")?.textContent;
-        const member = G.owned.find((o) => sword(o.id)?.name === n);
+        const name = item.querySelector("b")?.textContent;
+        const member = G.owned.find((o) => sword(o.id)?.name === name);
         if (member && !item.querySelector(".hp-card")) item.insertAdjacentHTML("beforeend", hpMarkup(member));
       });
       const controls = app.querySelector(".battle-fixed-controls");
@@ -136,57 +139,128 @@
     const member = rand(G.owned);
     const sw = sword(member.id);
     if (!sw) return;
-    const lines = [
+    const text = rand([
       `${sw.name}が本丸での出来事を話しに来た。`,
       `${sw.name}が近況を聞いてほしいと声をかけてきた。`,
       `${sw.name}がふとした思い出を語ってくれた。`,
       `${sw.name}が皆の様子を話しながら、穏やかな時間を過ごした。`,
-    ];
-    const text = rand(lines);
-    freeLog = true;
-    entry(sw.name, text);
+    ]);
+    base.entry(sw.name, text);
     if (G.logs[0]) G.logs[0].n = null;
-    freeLog = false;
     member.aff = clamp(member.aff + 2);
     member.trust = member.aff;
-    save();
+    base.save();
     modalOpen(`<div class="portrait">${sw.art}</div><h2>${sw.name}からの話</h2><p class="dialog-line">${text}</p><p>行動回数を消費せず、信頼度が2上がりました。</p><button class="wide" onclick="closeModal()">聞く</button>`);
   }
-  function addJournalFreeLogLabelFix() {
+  function cleanJournal() {
     const app = $("app");
     if (!app) return;
     app.querySelectorAll("section.paper .muted").forEach((node) => {
-      node.textContent = node.textContent.replace(/\s*行動(?:\d+|undefined)回目/, "");
+      node.textContent = node.textContent.replace(/\s*行動(?:null|undefined)回目/, "");
     });
+  }
+  function refreshTitleSuffix() {
+    const heading = $("app")?.querySelector(".hero h1");
+    if (heading && !heading.textContent.includes("試作中")) heading.textContent += "（試作中）";
+  }
+  function restEveryone() {
+    if (!G || G.actions <= 0) return action("休憩");
+    G.owned.forEach((member) => { member.fatigue = clamp(member.fatigue - 20); });
+    G.black = clamp((G.black || 0) - 3);
+    base.entry("本丸", "本丸の皆で休憩を取り、全員の疲労が和らいだ。");
+    consume();
+    save();
+    closeModal();
+    setView("journal");
+  }
+  function openRestMenu() {
+    if (!G || G.actions <= 0) return base.action("休憩");
+    if (G.penaltySeasonsRemaining > 0) {
+      modalOpen('<h2>休憩は選べません</h2><p>任務未達ペナルティ中のため、次の季節が終わるまで休憩できません。</p><button class="wide" onclick="closeModal()">確認</button>');
+      return;
+    }
+    modalOpen(`<h2>休憩</h2><p>誰と休憩しますか？どちらも行動回数を1回消費します。</p><div class="choice"><button onclick="restAdjutant()">近侍と休憩する</button><button onclick="restEveryone()">本丸のみんなで休憩する</button></div><button class="wide" onclick="closeModal()">戻る</button>`);
+  }
+  function beginForge() {
+    if (forgeSession) return;
+    const costs = { wood: 100, stone: 100, coal: 100, iron: 100 };
+    if (G.owned.length >= 12) return modalOpen('<h2>本丸の顕現枠がいっぱいです</h2><p>最大12振りまで迎えられます。</p><button class="wide" onclick="closeModal()">戻る</button>');
+    if (MATERIALS.some((key) => G.resources[key] < costs[key])) return modalOpen('<h2>資材不足</h2><p>鍛刀には木・石・炭・鉄が各100必要です。</p><button class="wide" onclick="closeModal()">戻る</button>');
+    const pool = SWORDS.filter((item) => !owned(item.id));
+    if (!pool.length) return modalOpen('<h2>顕現できる刀剣男士はいません</h2><p>実装済みの刀剣男士は全員本丸にいます。</p><button class="wide" onclick="closeModal()">戻る</button>');
+    forgeSession = { id: rand(pool).id, charged: false };
+    modalOpen('<div class="forge-scene"><div class="forge-spark">✦</div><h2>資源を投入しています</h2><p>木・石・炭・鉄を各100ずつ、鍛刀釜へ。</p><div class="forge-materials">🌲　🪨　⚫　⚙️</div><div class="forge-progress"><span></span></div></div>');
+    setTimeout(() => {
+      if (!forgeSession) return;
+      const sw = sword(forgeSession.id);
+      modalOpen(`<div class="forge-scene forge-reveal"><div class="forge-sword">${sw.art}</div><h2>鍛刀が完了しました</h2><p>刀身に霊力を込めてください。画面を長押しすると霊力が集まります。</p><button id="forge-charge" class="forge-charge" onpointerdown="startForgeCharge(event)" onpointerup="stopForgeCharge()" onpointercancel="stopForgeCharge()" onpointerleave="stopForgeCharge()">長押しして霊力を込める</button><div class="charge-track"><span id="charge-progress"></span></div><p id="charge-hint" aria-live="polite">長押しを続けてください</p></div>`);
+    }, 850);
+  }
+  function completeForge() {
+    if (!forgeSession || forgeSession.charged) return;
+    if (G.owned.length >= 12 || MATERIALS.some((key) => G.resources[key] < 100)) {
+      forgeSession = null;
+      return modalOpen('<h2>顕現できませんでした</h2><p>枠または資材を確認してください。</p><button class="wide" onclick="closeModal()">戻る</button>');
+    }
+    forgeSession.charged = true;
+    MATERIALS.forEach((key) => { G.resources[key] -= 100; });
+    const id = forgeSession.id;
+    grant(id);
+    progress("forge");
+    const sw = sword(id);
+    base.entry(sw.name, `鍛刀を行い、${sw.name}が顕現した。`);
+    consume();
+    save();
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    modalOpen(`<div class="forge-scene forge-blossom ${reducedMotion ? "reduced-motion" : ""}"><div class="petal-burst" aria-hidden="true">🌸　✿　🌸　✿　🌸</div><div class="forge-sword">${sw.art}</div><h2>${sw.name} 顕現</h2><p>${sw.lines.normal}</p><button class="wide" onclick="closeModal()">本丸へ</button></div>`);
+    forgeSession = null;
+    renderStatus();
   }
 
   window.fresh = () => normalize(base.fresh());
   window.load = () => normalize(base.load());
   window.save = () => { normalize(G); return base.save(); };
   window.renderStatus = renderCompactStatus;
+  window.renderTitle = () => { base.renderTitle(); refreshTitleSuffix(); };
   window.renderHome = () => { base.renderHome(); addMissionToHome(); };
   window.renderActions = () => {
     base.renderActions();
-    const app = $("app");
-    const panel = app?.querySelector(".actions");
-    if (panel && !panel.querySelector("[data-treatment-action]")) panel.insertAdjacentHTML("beforeend", '<button data-treatment-action onclick="action(\'手入れ\')">🩹 手入れ</button>');
+    const panel = $("app")?.querySelector(".actions");
+    if (!panel) return;
+    const restButton = [...panel.querySelectorAll("button")].find((button) => /休息|万屋/.test(button.textContent));
+    if (restButton) { restButton.textContent = "休憩"; restButton.setAttribute("onclick", "action('休憩')"); }
+    if (!panel.querySelector("[data-treatment-action]")) panel.insertAdjacentHTML("beforeend", '<button data-treatment-action onclick="action(\'手入れ\')">🩹 手入れ</button>');
   };
   window.renderBook = () => { base.renderBook(); addHealthToBook(); };
-  window.renderJournal = () => { base.renderJournal(); addJournalFreeLogLabelFix(); };
+  window.renderJournal = () => { base.renderJournal(); cleanJournal(); };
   window.renderBattleView = () => { base.renderBattleView(); appendLatestBattleLog(); };
   window.render = () => {
     normalize(G);
     base.render();
+    refreshTitleSuffix();
     if (view === "home") addMissionToHome();
+    if (view === "actions") {
+      const panel = $("app")?.querySelector(".actions");
+      if (panel) {
+        const restButton = [...panel.querySelectorAll("button")].find((button) => /休息|万屋/.test(button.textContent));
+        if (restButton) { restButton.textContent = "休憩"; restButton.setAttribute("onclick", "action('休憩')"); }
+        if (!panel.querySelector("[data-treatment-action]")) panel.insertAdjacentHTML("beforeend", '<button data-treatment-action onclick="action(\'手入れ\')">🩹 手入れ</button>');
+      }
+    }
     if (view === "book") addHealthToBook();
-    if (view === "journal") addJournalFreeLogLabelFix();
+    if (view === "journal") cleanJournal();
     if (view === "expedition") appendLatestBattleLog();
   };
   window.action = (name) => {
     if (!G) return;
     normalize(G);
-    if (name === "休息・万屋" && G.penaltySeasonsRemaining > 0) {
-      modalOpen('<h2>休息は選べません</h2><p>ペナルティ中のため、次の季節が終わるまで休息できません。</p><button class="wide" onclick="closeModal()">確認</button>');
+    if (["休憩", "休息・万屋"].includes(name)) return openRestMenu();
+    if (name === "鍛刀") return beginForge();
+    if (name === "手入れ") {
+      const injured = G.owned.filter((member) => member.hp < 100);
+      if (!injured.length) return modalOpen('<h2>手入れは不要です</h2><p>負傷している刀剣はいません。</p><button class="wide" onclick="closeModal()">戻る</button>');
+      const canTreat = G.resources.iron >= 50 && G.resources.stone >= 50;
+      modalOpen(`<h2>手入れ</h2><p>玉鋼50・砥石50を使い、刀剣のHPを50回復します。</p>${canTreat ? "" : '<p class="danger">資材が不足しています。</p>'}<div class="choice">${injured.map((member) => `<button ${canTreat ? "" : "disabled"} onclick="treatSword('${member.id}')">${sword(member.id).name}　${conditionFor(member.hp)}　HP ${member.hp}/100</button>`).join("")}</div><button class="wide" onclick="closeModal()">戻る</button>`);
       return;
     }
     if (name === "演練") {
@@ -194,39 +268,32 @@
       modalOpen(`<h2>演練する刀剣を選ぶ</h2><p>選んだ刀剣に経験値20を付与します。</p><div class="choice">${G.owned.map((member) => `<button onclick="trainSword('${member.id}')">${sword(member.id).name}　Lv.${member.level}　${conditionFor(member.hp)}</button>`).join("")}</div><button class="wide" onclick="closeModal()">戻る</button>`);
       return;
     }
-    if (name === "手入れ") {
-      const injured = G.owned.filter((member) => member.hp < 100);
-      if (!injured.length) return modalOpen('<h2>手入れは不要です</h2><p>負傷している刀剣はいません。</p><button class="wide" onclick="closeModal()">戻る</button>');
-      const canTreat = G.resources.iron >= 50 && G.resources.stone >= 50;
-      modalOpen(`<h2>手入れ</h2><p>玉鋼50・砥石50を使い、選んだ刀剣のHPを50回復します。</p>${canTreat ? "" : '<p class="danger">資材が不足しています。</p>'}<div class="choice">${injured.map((member) => `<button ${canTreat ? "" : "disabled"} onclick="treatSword('${member.id}')">${sword(member.id).name}　${conditionFor(member.hp)}　HP ${member.hp}/100</button>`).join("")}</div><button class="wide" onclick="closeModal()">戻る</button>`);
-      return;
-    }
     return base.action(name);
   };
-  window.treatSword = (id) => {
-    const member = owned(id);
-    if (!member || member.hp >= 100 || G.resources.iron < 50 || G.resources.stone < 50) return;
-    G.resources.iron -= 50;
-    G.resources.stone -= 50;
-    member.hp = clamp(member.hp + 50);
-    member.condition = conditionFor(member.hp);
-    entry(sword(id).name, `手入れを行い、HPが${member.hp}/100に回復した。状態：${member.condition}。`);
+  window.restAdjutant = () => {
+    if (!G || G.actions <= 0) return base.action("休憩");
+    if (G.penaltySeasonsRemaining > 0) {
+      modalOpen('<h2>休憩は選べません</h2><p>ペナルティ中のため、次の季節が終わるまで休憩できません。</p><button class="wide" onclick="closeModal()">確認</button>');
+      return;
+    }
+    const member = owned(G.adjutant);
+    if (member) { member.fatigue = clamp(member.fatigue - 20); member.aff = clamp(member.aff + 5); member.trust = member.aff; }
+    G.black = clamp((G.black || 0) - 3);
+    base.entry(sword(G.adjutant)?.name || "本丸", "近侍と休憩を取り、疲労が和らいだ。");
     consume(); save(); closeModal(); setView("journal");
   };
-  window.trainSword = (id) => {
-    const member = owned(id);
-    if (!member) return;
-    member.trainingExp += 20;
-    while (member.trainingExp >= member.level * 30) { member.trainingExp -= member.level * 30; member.level++; }
-    G.level++;
-    G.exp += 15;
-    member.aff = clamp(member.aff + 4);
-    member.trust = member.aff;
-    progress("training");
-    entry(sword(id).name, `演練を行い、${sword(id).name}が経験を積んだ。`);
+  window.restEveryone = () => {
+    if (!G) return;
+    if (G.actions <= 0) return base.action("休憩");
+    if (G.penaltySeasonsRemaining > 0) {
+      modalOpen('<h2>休憩は選べません</h2><p>ペナルティ中のため、次の季節が終わるまで休憩できません。</p><button class="wide" onclick="closeModal()">確認</button>');
+      return;
+    }
+    G.owned.forEach((member) => { member.fatigue = clamp(member.fatigue - 20); });
+    G.black = clamp((G.black || 0) - 3);
+    base.entry("本丸", "本丸のみんなで休憩を取り、全員の疲労が和らいだ。");
     consume(); save(); closeModal(); setView("journal");
   };
-  const baseOpenTalk = openTalk;
   window.openTalk = () => {
     if (G?.penaltySeasonsRemaining > 0) return showTalkPenalty();
     return baseOpenTalk();
@@ -239,44 +306,70 @@
   window.talkChoice = (...args) => {
     if (G?.penaltySeasonsRemaining > 0) return showTalkPenalty();
     base.talkChoice(...args);
-    progress("sortie", 0); // Conversation is an action, but not a mission objective.
     consume();
     save();
   };
+  const baseCrossTalk = openCrossTalk;
   window.openCrossTalk = (id) => {
     if (G?.penaltySeasonsRemaining > 0) return showTalkPenalty();
-    const count = G.logs.length;
-    base.openCrossTalk(id);
-    if (G.logs.length > count) { consume(); save(); }
+    const oldLogCount = G.logs.length;
+    baseCrossTalk(id);
+    if (G.logs.length > oldLogCount) { consume(); save(); }
   };
   window.doDuty = (id) => { base.doDuty(id); progress("duty"); save(); };
-  // Crafting consumes 50 of each basic resource; the base implementation already deducts 100 wood and iron.
-  window.forge = () => {
-    if (RESOURCE_KEYS.some((key) => (G.resources[key] || 0) < 50)) {
-      modalOpen('<h2>資材不足</h2><p>鍛刀には木・石・炭・鉄が各50必要です。</p><button class="wide" onclick="closeModal()">戻る</button>');
-      return;
-    }
-    const oldCount = G.owned.length;
-    base.forge();
-    if (G.owned.length > oldCount) {
-      G.resources.wood += 50;
-      G.resources.iron += 50;
-      G.resources.stone -= 50;
-      G.resources.coal -= 50;
-      progress("forge");
-      save();
-    }
+  window.treatSword = (id) => {
+    const member = owned(id);
+    if (!member || member.hp >= 100 || G.resources.iron < 50 || G.resources.stone < 50) return;
+    G.resources.iron -= 50; G.resources.stone -= 50;
+    member.hp = clamp(member.hp + 50); member.condition = conditionFor(member.hp);
+    base.entry(sword(id).name, `手入れを行い、HPが${member.hp}/100に回復した。状態：${member.condition}。`);
+    consume(); save(); closeModal(); setView("journal");
+  };
+  window.trainSword = (id) => {
+    const member = owned(id);
+    if (!member) return;
+    member.trainingExp += 20;
+    while (member.trainingExp >= member.level * 30) { member.trainingExp -= member.level * 30; member.level++; }
+    G.level++; G.exp += 15; member.aff = clamp(member.aff + 4); member.trust = member.aff;
+    progress("training"); base.entry(sword(id).name, `演練を行い、${sword(id).name}が経験を積んだ。`);
+    consume(); save(); closeModal(); setView("journal");
+  };
+  window.beginForgeCharge = () => {};
+  window.startForgeCharge = (event) => {
+    if (!forgeSession || forgeSession.charged || forgeSession.timer) return;
+    event?.preventDefault?.();
+    const button = $("forge-charge");
+    button?.classList.add("charging");
+    const started = Date.now();
+    forgeSession.timer = setInterval(() => {
+      const amount = Math.min(100, ((Date.now() - started) / 1400) * 100);
+      const bar = $("charge-progress");
+      if (bar) bar.style.width = `${amount}%`;
+      if (amount >= 100) {
+        clearInterval(forgeSession.timer);
+        forgeSession.timer = null;
+        completeForge();
+      }
+    }, 30);
+  };
+  window.stopForgeCharge = () => {
+    if (!forgeSession?.timer) return;
+    clearInterval(forgeSession.timer);
+    forgeSession.timer = null;
+    const bar = $("charge-progress");
+    if (bar) bar.style.width = "0%";
+    $("forge-charge")?.classList.remove("charging");
+    const hint = $("charge-hint");
+    if (hint) hint.textContent = "霊力が途切れました。もう一度長押ししてください。";
   };
   window.consume = (...args) => {
     normalize(G);
-    const injured = (G?.owned || []).filter((member) => member.hp < 75);
+    const injured = (G?.owned || []).filter((member) => member.hp <= 49);
     if (injured.length) {
       const pressure = injured.reduce((sum, member) => sum + (member.hp <= 20 ? 2 : 1), 0);
       G.black = clamp((G.black || 0) + pressure);
-      freeLog = true;
-      entry("本丸", `負傷した刀剣を手入れせずに過ごし、ブラック本丸ゲージが${pressure}上昇した。`);
+      base.entry("本丸", `中傷以上の刀剣を手入れせずに過ごし、ブラック本丸ゲージが${pressure}上昇した。`);
       if (G.logs[0]) G.logs[0].n = null;
-      freeLog = false;
     }
     const beforeTurns = G?.turns || 0;
     const result = base.consume(...args);
@@ -286,8 +379,7 @@
   window.advanceBattle = (...args) => {
     const result = base.advanceBattle(...args);
     if (BATTLE?.status === "戦闘中") BATTLE.damageApplied = false;
-    save();
-    return result;
+    save(); return result;
   };
   window.battleStep = (...args) => {
     const result = base.battleStep(...args);
@@ -297,10 +389,7 @@
   };
   window.returnBattle = (...args) => {
     if (BATTLE && !BATTLE.retreated) progress("sortie");
-    if (BATTLE) (BATTLE.party || []).forEach((id) => {
-      const member = owned(id);
-      if (member && member.hp <= 20) member.fatigue = clamp(member.fatigue + 5);
-    });
+    if (BATTLE) (BATTLE.party || []).forEach((id) => { const member = owned(id); if (member && member.hp <= 20) member.fatigue = clamp(member.fatigue + 5); });
     return base.returnBattle(...args);
   };
   window.advanceSeason = (...args) => {
@@ -314,34 +403,30 @@
       if (complete) {
         RESOURCE_KEYS.forEach((key) => { G.resources[key] = (Number(G.resources[key]) || 0) + 50; });
         report = `年間任務達成。報酬として${RESOURCE_KEYS.map((key) => `${RESOURCE_LABELS[key]}+50`).join("、")}。`;
-        entry("本丸", "年間任務をすべて達成。各資源を50ずつ獲得した。");
+        base.entry("本丸", "年間任務をすべて達成。各資源を50ずつ獲得した。");
       } else {
         const missed = G.missions.filter((mission) => mission.progress < mission.target).map((mission) => mission.label);
         RESOURCE_KEYS.forEach((key) => { G.resources[key] = Math.max(0, (Number(G.resources[key]) || 0) - 30); });
-        G.penaltySeasonsRemaining = 1;
-        G.penaltyActive = true;
-        report = `未達任務：${missed.join("、")}。ペナルティ：各資源-30、次季の会話制限。`;
-        entry("本丸", `年間任務未達。各資源を30失い、次季は会話制限。未達：${missed.join("、")}`);
+        G.black = clamp((G.black || 0) + 10);
+        G.penaltySeasonsRemaining = 1; G.penaltyActive = true;
+        report = `未達任務：${missed.join("、")}。ペナルティ：各資源-30、ブラック本丸ゲージ+10、次季の会話制限。`;
+        base.entry("本丸", `年間任務未達。各資源を30失い、ブラック本丸ゲージが10上昇。次季は会話制限。未達：${missed.join("、")}`);
       }
       G.missionCycle++;
       G.missions = MISSION_TEMPLATES.map((mission) => ({ ...mission, progress: 0 }));
     }
+    G.owned.forEach((member) => { member.fatigue = clamp(member.fatigue - 5); });
     const result = base.advanceSeason(...args);
-    if (!winterEnd && hadPenalty && G.penaltySeasonsRemaining > 0) {
-      G.penaltySeasonsRemaining--;
-      G.penaltyActive = G.penaltySeasonsRemaining > 0;
-    }
-    if (report) modalOpen(`<h2>${winterEnd && G.missions.every((m) => !m.progress) ? (report.startsWith("年間任務達成") ? "年間任務達成" : "年間任務の期限") : "年間任務"}</h2><p>${report}</p><button class="wide" onclick="closeModal()">確認</button>`);
-    save();
-    return result;
+    if (!winterEnd && hadPenalty && G.penaltySeasonsRemaining > 0) { G.penaltySeasonsRemaining--; G.penaltyActive = G.penaltySeasonsRemaining > 0; }
+    if (report) modalOpen(`<h2>${report.startsWith("年間任務達成") ? "年間任務達成" : "年間任務の期限"}</h2><p>${report}</p><button class="wide" onclick="closeModal()">確認</button>`);
+    save(); return result;
   };
-  window.renderStatus = renderCompactStatus;
-  window.resetGame = () => { base.resetGame(); folded = false; };
-  // One fixed sticky header contains both brand/fold control and the collapsible status panel.
+  // Sticky header holds the collapsible status block at all scroll positions.
   const header = document.querySelector(".top");
   const status = $("status");
   if (header && status && status.parentElement !== header) header.append(status);
   const foldButton = $("fold");
   if (foldButton) foldButton.onclick = () => { folded = !folded; renderCompactStatus(); foldButton.setAttribute("aria-expanded", String(!folded)); };
+  window.resetGame = () => { base.resetGame(); folded = false; forgeSession = null; };
   normalize(G);
 })();
