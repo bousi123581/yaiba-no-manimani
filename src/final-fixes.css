@@ -1,3 +1,47 @@
-/* Visual polish for branching conversation-event choices. */
+/* Existing layout plus atmosphere and battle-log status accents. */
+.short-season-transition .season-overlay { animation-duration: .85s; }
+.forge-failed { border-color: #b64a4a; background: #fff0ef; }
+.forge-failed h2 { color: #983d3d; }
+.petal-burst { z-index: 1; }
+#forge-hold { touch-action: none; user-select: none; }
 #modal-content .story-choice { display: grid; gap: 9px; margin-top: 12px; }
 #modal-content .story-choice button { text-align: left; white-space: normal; }
+
+/* The ambience darkens gradually with black-honmaru pressure while retaining contrast. */
+body.black-dim {
+  background-color: #c9c4bb;
+  background-image: linear-gradient(rgba(23, 28, 38, .08), rgba(23, 28, 38, .08)),
+    linear-gradient(rgba(36, 63, 97, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 63, 97, 0.018) 1px, transparent 1px);
+}
+body.black-dark {
+  background-color: #777b80;
+  background-image: linear-gradient(rgba(12, 17, 26, .32), rgba(12, 17, 26, .32)),
+    linear-gradient(rgba(36, 63, 97, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 63, 97, 0.018) 1px, transparent 1px);
+  color: #f7f2e8;
+}
+body.black-severe {
+  background-color: #282d35;
+  background-image: linear-gradient(rgba(5, 8, 14, .55), rgba(5, 8, 14, .55)),
+    linear-gradient(rgba(36, 63, 97, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 63, 97, 0.018) 1px, transparent 1px);
+  color: #fff8ea;
+}
+body.black-dark .paper, body.black-severe .paper,
+body.black-dark .hero, body.black-severe .hero {
+  background-color: #343a43;
+  border-color: #777368;
+  color: #f8f2e7;
+}
+body.black-dark .hero h1, body.black-severe .hero h1,
+body.black-dark .hero h2, body.black-severe .hero h2,
+body.black-dark .app > h2, body.black-severe .app > h2 { color: #f6e8c5; }
+body.black-dark .muted, body.black-severe .muted { color: #d3ccbd; }
+body.black-severe .stat { color: #f8f2e7; background: #414751; }
+body.black-severe .status { background: #343a43; color: #f8f2e7; }
+body.black-dark .bottom-nav, body.black-severe .bottom-nav { background: #171b22; }
+body.first-forge-pending .bottom-nav { display: none !important; }
+#battle-log-list .battle-log-injury { color: #a1262d; border-left-color: #b52e36; background: #fff0ed; font-weight: 700; }
+#battle-log-list .battle-log-feat { color: #735600; border-left-color: #d0a21a; background: #fff8d8; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .short-season-transition .season-overlay { animation-duration: .01ms; } }
