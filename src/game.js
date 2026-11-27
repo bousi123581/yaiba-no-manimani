@@ -1061,11 +1061,11 @@ const serverNames = [
 const seasons = ["春", "夏", "秋", "冬"],
   seasonEmoji = { 春: "🌸", 夏: "🌿✨", 秋: "🍁", 冬: "❄️" };
 const ranks = [
-  { r: "S", flower: "牡丹", acts: 7 },
-  { r: "A", flower: "藤", acts: 6 },
-  { r: "B", flower: "桜", acts: 5 },
-  { r: "C", flower: "椿", acts: 4 },
-  { r: "D", flower: "菫", acts: 3 },
+  { r: "S", flower: "牡丹", acts: 6 },
+  { r: "A", flower: "藤", acts: 5 },
+  { r: "B", flower: "桜", acts: 4 },
+  { r: "C", flower: "椿", acts: 3 },
+  { r: "D", flower: "菫", acts: 2 },
 ];
 const $ = (id) => document.getElementById(id);
 let G = null,
@@ -1089,6 +1089,7 @@ function fresh() {
       "家系の継承",
       "偶然の適性",
       "古い記録に導かれて",
+      "現代遠征中の刀剣男士からのスカウト",
     ]),
     age: 5 + Math.floor(Math.random() * 21),
     year: 1,
@@ -1281,7 +1282,7 @@ function renderInitial() {
 }
 function renderForgeIntro() {
   $("app").innerHTML =
-    `<section class="paper hero"><h2>初鍛刀</h2><p>政府から届いた資材と鍛刀道具。最初の刀を迎える時が来た。</p><button class="wide" onclick="firstForge()">鍛刀を始める</button></section>`;
+    `<section class="paper hero"><h2>初鍛刀</h2><p>政府から届いた資材と鍛刀道具。最初の刀を迎える時が来た。</p><button class="wide" onclick="firstForge()">初期刀と鍛刀を始める</button></section>`;
 }
 function setView(v) {
   view = v;
