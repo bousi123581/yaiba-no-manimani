@@ -1,6 +1,2 @@
-/* Final presentation details for game events and short seasonal transitions. */
+/* Shorter season transition. */
 .short-season-transition .season-overlay { animation-duration: .85s; }
-.forge-failed { border-color: #b64a4a; background: #fff0ef; }
-.forge-failed h2 { color: #983d3d; }
-.petal-burst { z-index: 1; }
-#forge-hold { touch-action: none; user-select: none; }
