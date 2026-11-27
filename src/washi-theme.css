@@ -1,0 +1,381 @@
+/*
+ * UI theme extension for 刃のまにまに.
+ * To use a paper texture, replace `none` with `url("../assets/washi.jpg")`.
+ * Keep the file path relative to this stylesheet (src/).
+ */
+:root {
+  --ink: #30312f;
+  --muted: #716e67;
+  --sumi: #343a3b;
+  --indigo: #526d88;
+  --indigo-dark: #354e68;
+  --vermilion: #a95249;
+  --gold: #a98d59;
+  --paper: #f5f1e8;
+  --paper-light: #fcfaf4;
+  --panel: #fffdf8;
+  --line: #ded9ce;
+  --line-strong: #c9bfa9;
+  --washi-image: none;
+  --washi-overlay: rgba(250, 247, 239, 0.78);
+}
+
+html {
+  background: #f5f1e8;
+}
+
+body {
+  color: var(--ink);
+  background-color: #f5f1e8;
+  background-image:
+    linear-gradient(var(--washi-overlay), var(--washi-overlay)),
+    var(--washi-image),
+    repeating-linear-gradient(0deg, rgba(103, 91, 67, 0.018) 0 1px, transparent 1px 5px),
+    linear-gradient(135deg, #f8f5ed, #f0ece2);
+  background-size: cover, cover, auto, cover;
+  background-position: center, center, center, center;
+  background-attachment: fixed;
+  line-height: 1.75;
+}
+
+.top {
+  background: rgba(249, 247, 240, 0.97);
+  color: var(--sumi);
+  border-bottom: 2px solid rgba(169, 141, 89, 0.72);
+  box-shadow: 0 2px 10px rgba(55, 55, 48, 0.08);
+}
+
+.brand small {
+  color: var(--muted);
+}
+
+.top button {
+  border-color: var(--line-strong);
+  background: #fffdf8;
+  color: var(--indigo-dark);
+}
+
+.status {
+  background: rgba(235, 234, 227, 0.96);
+  border-bottom-color: var(--line);
+}
+
+.stat {
+  background: rgba(255, 253, 248, 0.94);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.app {
+  padding-top: clamp(14px, 3vw, 24px);
+}
+
+.app > h2,
+.modal-card h2,
+.hero h1,
+.hero h2,
+.section-title,
+.battle-history h3 {
+  color: var(--indigo-dark);
+}
+
+.paper {
+  background: rgba(255, 253, 248, 0.96);
+  border-color: var(--line);
+  border-radius: 10px;
+  box-shadow: 0 2px 9px rgba(63, 58, 46, 0.045);
+}
+
+.hero {
+  background: rgba(252, 250, 244, 0.97);
+  border: 1px solid var(--line-strong);
+}
+
+.hero::before,
+.hero::after {
+  border-color: var(--gold);
+}
+
+.hero h1 {
+  letter-spacing: 0.12em;
+}
+
+button {
+  border-color: var(--line-strong);
+  background: #fffdf8;
+  color: var(--ink);
+  border-radius: 8px;
+  min-height: 48px;
+}
+
+button:hover {
+  border-color: var(--indigo);
+  background: #f5f7f8;
+}
+
+button:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline-color: rgba(82, 109, 136, 0.45);
+}
+
+.primary-action,
+.choice button.primary-action {
+  background: var(--indigo);
+  border-color: var(--indigo);
+  color: #fff;
+}
+
+.primary-action:hover,
+.choice button.primary-action:hover {
+  background: var(--indigo-dark);
+}
+
+.choice button {
+  border-left-color: var(--vermilion);
+}
+
+.bottom-nav {
+  background: rgba(250, 248, 242, 0.98);
+  border-top: 1px solid var(--line-strong);
+  box-shadow: 0 -3px 12px rgba(55, 55, 48, 0.08);
+}
+
+.bottom-nav button {
+  color: var(--indigo-dark);
+}
+
+.bottom-nav button:hover,
+.bottom-nav button:active {
+  background: #edf0f2;
+}
+
+.modal-backdrop {
+  background: rgba(38, 42, 43, 0.48);
+}
+
+.modal-card {
+  background: var(--paper-light);
+  border-color: var(--line-strong);
+  border-radius: 12px;
+}
+
+.modal-card h2 {
+  border-bottom-color: var(--line);
+}
+
+.portrait {
+  background: #f0eee7;
+  border-color: var(--line);
+}
+
+.portrait:empty::after {
+  content: "刀";
+  color: var(--indigo);
+  font-size: 2.4rem;
+  border: 1px solid var(--line-strong);
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.log {
+  background: rgba(248, 246, 239, 0.82);
+  border-left-color: var(--gold);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.danger {
+  color: var(--vermilion);
+}
+
+.section-title {
+  border-bottom-color: var(--line-strong);
+}
+
+.listitem {
+  border-bottom-color: var(--line);
+}
+
+.map-node {
+  background: #f7f6f1;
+  border-color: var(--line);
+}
+
+.map-node span {
+  background: #e4e6e5;
+  color: var(--sumi);
+}
+
+.map-node.done {
+  background: #eff2ed;
+  border-color: #bdc9b8;
+}
+
+.map-node.current {
+  background: #edf1f5;
+  border-color: var(--indigo);
+}
+
+.map-node.current span {
+  background: var(--indigo);
+}
+
+.party-tag {
+  background: #eeece5;
+}
+
+.roster-choice {
+  background: var(--panel);
+  border-color: var(--line);
+}
+
+.roster-choice input {
+  accent-color: var(--indigo);
+}
+
+.battle-history {
+  background: var(--panel);
+  border-color: var(--line-strong);
+}
+
+#battle-log-list .log {
+  background: #f8f6ef;
+  border-left-color: var(--gold);
+}
+
+#battle-log-list .latest-log {
+  background: #edf1f5;
+  border-left-color: var(--indigo);
+}
+
+.battle-details {
+  background: #f8f6ef;
+  border-color: var(--line);
+}
+
+.battle-fixed-controls {
+  background: rgba(250, 248, 242, 0.98);
+  border-top-color: var(--line-strong);
+}
+
+.season-overlay {
+  background: rgba(245, 241, 232, 0.96);
+  color: var(--indigo-dark);
+}
+
+/* Appointment notice: existing generated profile content is retained as-is. */
+.appointment-document {
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+  padding: clamp(22px, 6vw, 44px);
+  background-color: #fbf8ef;
+  background-image:
+    linear-gradient(rgba(252, 250, 244, 0.9), rgba(252, 250, 244, 0.9)),
+    var(--washi-image),
+    repeating-linear-gradient(0deg, rgba(103, 91, 67, 0.02) 0 1px, transparent 1px 5px);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 5px 18px rgba(63, 58, 46, 0.08);
+  animation: notice-appear 650ms ease-out both;
+}
+
+.appointment-document::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(169, 141, 89, 0.45);
+  pointer-events: none;
+}
+
+.appointment-document::after {
+  content: "時の政府";
+  position: absolute;
+  right: clamp(22px, 7vw, 48px);
+  bottom: clamp(22px, 7vw, 48px);
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  color: var(--vermilion);
+  border: 2px solid rgba(169, 82, 73, 0.72);
+  border-radius: 5px;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  opacity: 0;
+  transform: rotate(-7deg) scale(0.9);
+  animation: seal-appear 420ms ease-out 520ms forwards;
+}
+
+.appointment-document h2 {
+  position: relative;
+  width: fit-content;
+  margin: 0 auto 24px;
+  padding: 0 22px 10px;
+  color: var(--vermilion);
+  font-size: 1.8rem;
+  letter-spacing: 0.3em;
+  border-bottom: 1px solid var(--gold);
+}
+
+.appointment-document .dialog-line {
+  line-height: 2;
+}
+
+.appointment-document p {
+  position: relative;
+  z-index: 1;
+}
+
+.appointment-document button {
+  position: relative;
+  z-index: 2;
+  margin-top: 12px;
+}
+
+@keyframes notice-appear {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes seal-appear {
+  to { opacity: 0.9; transform: rotate(-7deg) scale(1); }
+}
+
+@media (min-width: 600px) {
+  .appointment-document {
+    padding: 44px 56px;
+  }
+}
+
+@media (max-width: 380px) {
+  .appointment-document {
+    padding: 26px 18px 78px;
+  }
+
+  .appointment-document::before {
+    inset: 8px;
+  }
+
+  .appointment-document h2 {
+    margin-bottom: 18px;
+  }
+
+  .bottom-nav button {
+    color: var(--indigo-dark);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .appointment-document,
+  .appointment-document::after {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
