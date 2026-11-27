@@ -1,2 +1,3 @@
-/* Shorter season transition. */
-.short-season-transition .season-overlay { animation-duration: .85s; }
+/* Visual polish for branching conversation-event choices. */
+#modal-content .story-choice { display: grid; gap: 9px; margin-top: 12px; }
+#modal-content .story-choice button { text-align: left; white-space: normal; }
